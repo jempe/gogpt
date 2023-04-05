@@ -14,5 +14,4 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
-openai_api_key.txt
-qa.db
+.DS_Store
