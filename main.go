@@ -57,6 +57,9 @@ type Config struct {
 
 var showHelp = flag.Bool("help", false, "Show help")
 var question = flag.String("question", "", "Question to ask")
+var example_prompt = flag.String("example_prompt", "", "Example prompt")
+var example_response = flag.String("example_response", "", "Example response")
+var file_to_analyze = flag.String("file_to_analyze", "", "Text File to analyze")
 var debugMode = flag.Bool("debug", false, "Print all Debug messages")
 
 var logError *log.Logger
@@ -103,6 +106,21 @@ func main() {
 		logError.Printf("Error unmarshalling API key file: %v", err)
 	}
 
+	var text_to_analyze []byte
+
+	if *file_to_analyze != "" {
+		if _, err := os.Stat(*file_to_analyze); os.IsNotExist(err) {
+			logError.Printf("File %s does not exist", *file_to_analyze)
+			os.Exit(1)
+		}
+
+		text_to_analyze, err = ioutil.ReadFile(*file_to_analyze)
+		if err != nil {
+			logError.Printf("Error reading file: %v", err)
+			os.Exit(1)
+		}
+	}
+
 	apiKey := config.APIKey
 
 	dbFile := getConfigDir() + "/qa.db"
@@ -121,7 +139,7 @@ func main() {
 		log.Fatalf("Error creating bucket: %v", err)
 	}
 
-	answer, err := getAnswer(apiKey, *question)
+	answer, err := getAnswer(apiKey, *question, *example_prompt, *example_response, string(text_to_analyze))
 	if err != nil {
 		log.Fatalf("Error getting answer: %v", err)
 	}
@@ -134,11 +152,14 @@ func main() {
 	fmt.Printf("Answer: %s\n", answer)
 }
 
-func getAnswer(apiKey, question string) (string, error) {
+func getAnswer(apiKey, question string, example_prompt string, example_response string, text_to_analyze string) (string, error) {
 	chatReq := ChatCompletionRequest{
 		Model: modelID,
 		Messages: []Message{
-			{Role: "user", Content: question},
+			{Role: "system", Content: "You are a helpful assistant and you give answers in a list. People generally ask about text and books."},
+			{Role: "user", Content: example_prompt},
+			{Role: "assistant", Content: example_response},
+			{Role: "user", Content: "Now, about this following text, " + question + ": " + text_to_analyze},
 		},
 		Temperature: defaultTemperature,
 	}
